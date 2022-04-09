@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use crate::*;
-use crate::file::{FileMan, FileManResult};
+use crate::file::{FilePath, FileManResult};
 
 use chrono::Local;
 
@@ -181,8 +181,8 @@ impl Console {
 
             let output_content = header.clone() + "\n\n" + &lines.join("\n");
 
-            // fix: -> write_lines()
-            FileMan::write_all(&each_file_log.output_path, &output_content)?;
+            // [fix] use write_lines()
+            FilePath::write(&FilePath::new(each_file_log.output_path), &output_content)?;
         }
 
         return Ok(());
