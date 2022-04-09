@@ -1,7 +1,24 @@
 pub mod cons;
 pub mod file;
+pub mod js;
 
 use crate::cons::*;
+
+pub trait ConsoleResultConsumption<T> {
+    fn consume(self, cons: &mut Console) -> ConsoleResult<T>;
+}
+
+impl<T, E: ConsoleLogger> ConsoleResultConsumption<T> for Result<T, E> {
+    fn consume(self, cons: &mut Console) -> ConsoleResult<T> {
+        match self {
+            Ok(v) => Ok(v),
+            Err(e) => {
+                cons.append_log(e.get_log());
+                Err(())
+            },
+        }
+    }
+}
 
 enum InternalLanguage {
     English,

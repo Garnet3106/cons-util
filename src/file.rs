@@ -47,7 +47,7 @@ impl FileMan {
 
         let curr_dir_path_obj = match current_dir() {
             Ok(v) => v,
-            Err(_) => return Err(FileManLog::FailedToGetCurrentDirectory {}),
+            Err(_) => return Err(FileManLog::FailedToGetCurrentDirectory {}).into(),
         };
 
         return Ok(Box::from(curr_dir_path_obj.join(rel_path_obj)));
@@ -181,10 +181,12 @@ impl FileMan {
         let mut lines = Vec::<String>::new();
 
         for each_line in BufReader::new(reader).lines() {
-            lines.push(match each_line {
-                Ok(v) => v,
-                Err(_) => return Err(FileManLog::FailedToReadFile { path: path.to_string() }),
-            });
+            lines.push(
+                match each_line {
+                    Ok(v) => v,
+                    Err(_) => return Err(FileManLog::FailedToReadFile { path: path.to_string() }),
+                }
+            );
         }
 
         return Ok(lines);
