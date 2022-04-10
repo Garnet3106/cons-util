@@ -40,7 +40,7 @@ impl ConsoleLogger for FileManLog {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub struct FilePath(String, PathBuf);
 
 impl FilePath {
