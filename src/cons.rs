@@ -7,48 +7,8 @@ use chrono::Local;
 
 pub type ConsoleResult<T> = Result<T, ()>;
 
-#[macro_export]
-macro_rules! log {
-    ($kind:ident, $title:expr $(, $desc:expr)*) => {
-        {
-            ConsoleLog {
-                kind: ConsoleLogKind::$kind,
-                title: Box::new($title),
-                descs: vec![
-                    $(Box::new($desc),)*
-                ]
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! translate {
-    (translator => $log:expr, lang => $lang:expr, $($log_key:pat => {$($lang_key:pat => $value:expr,)*},)*) => {
-        match $log {
-            $(
-                $log_key => {
-                    match $lang {
-                        $($lang_key => $value.to_string(),)+
-                    }
-                },
-            )+
-        }
-    };
-}
-
-pub trait ConsoleLogger: Clone + PartialEq {
-    fn get_log(&self) -> ConsoleLog;
-}
-
-#[derive(Clone, PartialEq)]
-pub enum TranslationResult {
-    Success(String),
-    UnknownLanguage
-}
-
 pub trait ConsoleLogTranslator: Send {
-    fn translate(&self, lang_name: &str) -> TranslationResult;
+    fn translate(&self, lang: &str) -> ConsoleLog;
 }
 
 #[derive(Clone, PartialEq)]
@@ -59,6 +19,17 @@ pub enum ConsoleLogKind {
 }
 
 impl ConsoleLogKind {
+    pub fn from(v: String) -> Option<ConsoleLogKind> {
+        let kind = match v.as_str() {
+            "E" => ConsoleLogKind::Error,
+            "W" => ConsoleLogKind::Warning,
+            "N" => ConsoleLogKind::Note,
+            _ => return None,
+        };
+
+        return Some(kind);
+    }
+
     fn get_log_color_num(&self) -> usize {
         return match self {
             ConsoleLogKind::Error => 31,
@@ -80,8 +51,16 @@ impl ConsoleLogKind {
 
 pub struct ConsoleLog {
     pub kind: ConsoleLogKind,
-    pub title: Box<dyn ConsoleLogTranslator>,
-    pub descs: Vec<Box<dyn ConsoleLogTranslator>>,
+    pub msg: String,
+}
+
+impl ConsoleLog {
+    pub fn new(kind: ConsoleLogKind, msg: String) -> ConsoleLog {
+        return ConsoleLog {
+            kind: kind,
+            msg: msg,
+        }
+    }
 }
 
 #[derive(Clone, PartialEq)]
@@ -114,7 +93,7 @@ pub enum ConsoleLogLimit {
 impl Display for ConsoleLogLimit {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            ConsoleLogLimit::NoLimit => "[no limit]".to_string(),
+            ConsoleLogLimit::NoLimit => "[nolimit]".to_string(),
             ConsoleLogLimit::Limited(limit_count) => limit_count.to_string(),
         };
 
@@ -137,6 +116,10 @@ impl Console {
             log_limit: log_limit,
             ignore_logs: false,
         };
+    }
+
+    pub fn get_lang(&self) -> &str {
+        return &self.lang;
     }
 
     pub fn append_log(&mut self, log: ConsoleLog) {
@@ -199,7 +182,7 @@ impl Console {
 
         for each_log in &self.log_list {
             if limit_num != -1 && log_count + 1 > limit_num as i32 {
-                self.print(&log!(Note, InternalTranslator::LogLimitExceeded { log_limit: self.log_limit.clone() }), &mut Vec::new());
+                self.print(&InternalLog::LogLimitExceeded { log_limit: self.log_limit.clone() }.translate(&self.lang), &mut Vec::new());
                 break;
             }
 
@@ -209,42 +192,15 @@ impl Console {
     }
 
     fn print(&self, log: &ConsoleLog, log_lines: &mut Vec<String>) {
-        let title_color = log.kind.get_log_color_num();
-        let kind_name = log.kind.get_log_kind_name();
+        let kind_color = log.kind.get_log_color_num();
+        let kind_name = &log.kind.get_log_kind_name();
+        let msg = &log.msg;
 
-        let title = match log.title.translate(&self.lang) {
-            TranslationResult::Success(v) => v,
-            TranslationResult::UnknownLanguage => {
-                println!("{}", Console::format_unknown_language_log());
-                println!();
-                return;
-            },
-        };
-
-        println!("{}", Console::format_title(Some(title_color), &kind_name, &title));
-        log_lines.push(Console::format_title(None, &kind_name, &title));
-
-        for each_desc_result in &log.descs {
-            let each_desc = match each_desc_result.translate(&self.lang) {
-                TranslationResult::Success(v) => v,
-                TranslationResult::UnknownLanguage => {
-                    println!("{}", Console::format_unknown_language_log());
-                    println!();
-                    return;
-                },
-            };
-
-            println!("{}", each_desc);
-            log_lines.push(each_desc);
-        }
+        println!("{}", Console::format_title(Some(kind_color), kind_name, msg));
+        log_lines.push(Console::format_title(None, kind_name, msg));
 
         println!();
         log_lines.push(String::new());
-    }
-
-    fn format_unknown_language_log() -> String {
-        let err_log_kind = ConsoleLogKind::Error;
-        return Console::format_title(Some(err_log_kind.get_log_color_num()), &err_log_kind.get_log_kind_name(), "unknown language");
     }
 
     fn format_log_file_writing_failure_log() -> String {

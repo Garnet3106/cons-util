@@ -8,6 +8,7 @@ js = []
 
 [dependencies]
 chrono = "0"
+cons-util-derive = { path = "C:/Users/Garnet3106/Desktop/Media/Docs/Repos/cons-util-derive" }
 regex = "1"
 same-file = "1"
 wasm-bindgen = "0.2"

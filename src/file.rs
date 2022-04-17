@@ -1,43 +1,81 @@
-use crate::*;
-use crate::cons::*;
+use {
+    // cons-util-derive で展開されるコードへの対応
+    crate as cons_util,
+    crate::cons::*,
 
-use std::env::current_dir;
-use std::fmt::{Display, Formatter};
-use std::fs::*;
-use std::io::*;
-use std::path::PathBuf;
-use std::time::SystemTime;
-use std::result::Result;
+    std::{
+        env::current_dir,
+        fmt::{
+            Display,
+            Formatter,
+        },
+        fs::*,
+        io::*,
+        path::PathBuf,
+        time::SystemTime,
+        result::Result,
+    },
+};
 
 pub type FileManResult<T> = Result<T, FileManLog>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, cons_util_derive::ConsoleLogTranslator, Debug, PartialEq)]
 pub enum FileManLog {
-    ExpectedFilePathNotDirectoryPath { path: String },
-    FailedToGetCurrentDirectory,
-    FailedToOpenFile { path: String },
-    FailedToOpenFileOrDirectory { path: String },
-    FailedToReadFile { path: String },
-    FailedToWriteFile { path: String },
-    LogLimitExceeded { log_limit: ConsoleLogLimit },
-    MetadataIsNotAvailableOnThisPlatform { path: String },
-    PathDoesNotExist { path: String },
-}
+    #[translate(
+        kind = "E",
+        en = "expected file path not directory path",
+        ja = "ディレクトリパスでなくファイルパスが必要です",
+    )]
+    ExpectedFilePathNotDirectoryPath,
 
-impl ConsoleLogger for FileManLog {
-    fn get_log(&self) -> ConsoleLog {
-        match self {
-            FileManLog::ExpectedFilePathNotDirectoryPath { path } => log!(Error, InternalTranslator::ExpectedFilePathNotDirectoryPath, InternalTranslator::PathDescription { path: path.clone() }),
-            FileManLog::FailedToGetCurrentDirectory => log!(Error, InternalTranslator::FailedToGetCurrentDirectory),
-            FileManLog::FailedToOpenFile { path } => log!(Error, InternalTranslator::FailedToOpenFile, InternalTranslator::PathDescription { path: path.clone() }),
-            FileManLog::FailedToOpenFileOrDirectory { path } => log!(Error, InternalTranslator::FailedToOpenFileOrDirectory, InternalTranslator::PathDescription { path: path.clone() }),
-            FileManLog::FailedToReadFile { path } => log!(Error, InternalTranslator::FailedToReadFile, InternalTranslator::PathDescription { path: path.clone() }),
-            FileManLog::FailedToWriteFile { path } => log!(Error, InternalTranslator::FailedToWriteFile, InternalTranslator::PathDescription { path: path.clone() }),
-            FileManLog::LogLimitExceeded { log_limit } => log!(Error, InternalTranslator::LogLimitExceeded { log_limit: log_limit.clone() }),
-            FileManLog::MetadataIsNotAvailableOnThisPlatform { path } => log!(Error, InternalTranslator::MetadataIsNotAvailableOnThisPlatform, InternalTranslator::PathDescription { path: path.clone() }),
-            FileManLog::PathDoesNotExist { path } => log!(Error, InternalTranslator::PathDoesNotExist, InternalTranslator::PathDescription { path: path.clone() }),
-        }
-    }
+    #[translate(
+        kind = "E",
+        en = "failed to get current directory",
+        ja = "カレントディレクトリの取得に失敗しました",
+    )]
+    FailedToGetCurrentDirectory,
+
+    #[translate(
+        kind = "E",
+        en = "failed to open file\n\tpath: {path}",
+        ja = "ファイルのオープンに失敗しました\n\tパス: {path}",
+    )]
+    FailedToOpenFile { path: String },
+
+    #[translate(
+        kind = "E",
+        en = "failed to open file or directory\n\tpath: {path}",
+        ja = "ファイルもしくはディレクトリのオープンに失敗しました\n\tパス: {path}",
+    )]
+    FailedToOpenFileOrDirectory { path: String },
+
+    #[translate(
+        kind = "E",
+        en = "failed to read file\n\tpath: {path}",
+        ja = "ファイルの読み込みに失敗しました\n\tパス: {path}",
+    )]
+    FailedToReadFile { path: String },
+
+    #[translate(
+        kind = "E",
+        en = "failed to write file\n\tpath: {path}",
+        ja = "ファイルの書き込みに失敗しました\n\tパス: {path}",
+    )]
+    FailedToWriteFile { path: String },
+
+    #[translate(
+        kind = "E",
+        en = "metadata is not available on this platform",
+        ja = "このプラットフォームでは属性が利用できません",
+    )]
+    MetadataIsNotAvailableOnThisPlatform,
+
+    #[translate(
+        kind = "E",
+        en = "path does not exist\n\tpath: {path}",
+        ja = "パスが存在しません\n\tパス: {path}",
+    )]
+    PathDoesNotExist { path: String },
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -94,9 +132,7 @@ impl FilePath {
 
         return match metadata.modified() {
             Ok(time) => Ok(time),
-            Err(_) => Err(FileManLog::MetadataIsNotAvailableOnThisPlatform {
-                path: self.0.clone(),
-            }),
+            Err(_) => Err(FileManLog::MetadataIsNotAvailableOnThisPlatform),
         };
     }
 
@@ -235,7 +271,7 @@ impl FilePath {
         return if self.is_file() {
             Ok(())
         } else {
-            Err(FileManLog::ExpectedFilePathNotDirectoryPath { path: self.0.clone() })
+            Err(FileManLog::ExpectedFilePathNotDirectoryPath)
         };
     }
 }
